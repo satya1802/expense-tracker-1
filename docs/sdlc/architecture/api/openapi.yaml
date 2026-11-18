@@ -2,6 +2,448 @@
 openapi: 3.1.0
 info:
   title: expense tracker 1
-  version: architecture-v0
+  version: architecture-v1
   description: Designed API from the approved architecture (not extracted from code).
-paths: {}
+paths:
+  /auth/change-password:
+    post:
+      summary: Change password after verifying current password; stores new password
+        as a hash.
+      description: Change password after verifying current password; stores new password
+        as a hash.
+      operationId: post_auth_change_password
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ current_password, new_password }'
+      responses:
+        '200':
+          description: 204 or 400 current password incorrect / 422 weak password
+      security:
+      - bearerAuth: []
+  /auth/deactivate:
+    post:
+      summary: Deactivate the account and revoke all its active sessions.
+      description: Deactivate the account and revoke all its active sessions.
+      operationId: post_auth_deactivate
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ confirm: true }'
+      responses:
+        '200':
+          description: 204 No Content
+      security:
+      - bearerAuth: []
+  /auth/login:
+    post:
+      summary: Authenticate credentials and create a server-side session; returns
+        the opaque token in the body.
+      description: Authenticate credentials and create a server-side session; returns
+        the opaque token in the body.
+      operationId: post_auth_login
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, password }'
+      responses:
+        '200':
+          description: '200 { token, user: { id, email, currency } } or 401 invalid
+            credentials'
+  /auth/logout:
+    post:
+      summary: Revoke the current session server-side.
+      description: Revoke the current session server-side.
+      operationId: post_auth_logout
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: empty
+      responses:
+        '200':
+          description: 204 No Content
+      security:
+      - bearerAuth: []
+  /auth/signup:
+    post:
+      summary: Register a new account with email and password; validates uniqueness
+        and password strength, hashes the password, seeds d
+      description: Register a new account with email and password; validates uniqueness
+        and password strength, hashes the password, seeds default categories.
+      operationId: post_auth_signup
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, password }'
+      responses:
+        '200':
+          description: 201 { user_id, email } or 409/422 with validation message
+  /categories:
+    get:
+      summary: List the current user's categories (default and custom).
+      description: List the current user's categories (default and custom).
+      operationId: get_categories
+      parameters: []
+      responses:
+        '200':
+          description: 200 [ { id, name, is_default, is_fallback } ]
+      security:
+      - bearerAuth: []
+    post:
+      summary: Create a custom category with a non-empty, non-duplicate name.
+      description: Create a custom category with a non-empty, non-duplicate name.
+      operationId: post_categories
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ name }'
+      responses:
+        '200':
+          description: 201 { id, name } or 422 empty/duplicate
+      security:
+      - bearerAuth: []
+  /categories/{id}:
+    put:
+      summary: Rename a custom category to a valid, non-duplicate name; applies everywhere
+        it appears.
+      description: Rename a custom category to a valid, non-duplicate name; applies
+        everywhere it appears.
+      operationId: put_categories_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ name }'
+      responses:
+        '200':
+          description: 200 { id, name } or 422
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Delete a custom category; reassigns affected expenses to the fallback
+        category on confirmation.
+      description: Delete a custom category; reassigns affected expenses to the fallback
+        category on confirmation.
+      operationId: delete_categories_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 204 or 409 with affected-expense count warning
+      security:
+      - bearerAuth: []
+  /expenses:
+    get:
+      summary: List the user's expenses, most recent first, with optional category
+        and date-range filters.
+      description: List the user's expenses, most recent first, with optional category
+        and date-range filters.
+      operationId: get_expenses
+      parameters: []
+      responses:
+        '200':
+          description: 200 [ { id, amount, expense_date, category_id, category_name,
+            notes } ]
+      security:
+      - bearerAuth: []
+    post:
+      summary: Create an expense with positive amount, date, category and optional
+        notes.
+      description: Create an expense with positive amount, date, category and optional
+        notes.
+      operationId: post_expenses
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ amount, expense_date, category_id, notes? }'
+      responses:
+        '200':
+          description: 201 { id, ... } or 422 validation message
+      security:
+      - bearerAuth: []
+  /expenses/export:
+    get:
+      summary: Export the user's expenses as CSV honouring category/date filters;
+        headers only when nothing matches.
+      description: Export the user's expenses as CSV honouring category/date filters;
+        headers only when nothing matches.
+      operationId: get_expenses_export
+      parameters: []
+      responses:
+        '200':
+          description: 200 text/csv with amount,date,category,notes columns
+      security:
+      - bearerAuth: []
+  /expenses/{id}:
+    get:
+      summary: Fetch a single expense owned by the user.
+      description: Fetch a single expense owned by the user.
+      operationId: get_expenses_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 200 { id, amount, expense_date, category_id, notes } or 404
+      security:
+      - bearerAuth: []
+    put:
+      summary: Update an expense's amount, date, category or notes; invalid values
+        rejected, originals preserved.
+      description: Update an expense's amount, date, category or notes; invalid values
+        rejected, originals preserved.
+      operationId: put_expenses_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ amount, expense_date, category_id, notes? }'
+      responses:
+        '200':
+          description: 200 { id, ... } or 422
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Delete an expense so it no longer counts in reports or exports.
+      description: Delete an expense so it no longer counts in reports or exports.
+      operationId: delete_expenses_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 204 No Content
+      security:
+      - bearerAuth: []
+  /reports/by-category:
+    get:
+      summary: Aggregate spending grouped by category for a date range, with totals
+        and shares in the user's currency.
+      description: Aggregate spending grouped by category for a date range, with totals
+        and shares in the user's currency.
+      operationId: get_reports_by_category
+      parameters: []
+      responses:
+        '200':
+          description: '200 { currency, items: [ { category, total, share } ] }'
+      security:
+      - bearerAuth: []
+  /reports/dashboard:
+    get:
+      summary: Return summary figures (recent-period total) and a spending breakdown
+        for the dashboard, with empty-state support.
+      description: Return summary figures (recent-period total) and a spending breakdown
+        for the dashboard, with empty-state support.
+      operationId: get_reports_dashboard
+      parameters: []
+      responses:
+        '200':
+          description: '200 { total, breakdown: [ { category, total } ], currency,
+            is_empty }'
+      security:
+      - bearerAuth: []
+  /reports/over-time:
+    get:
+      summary: Aggregate total spending over time by day/week/month for a date range,
+        in the user's currency.
+      description: Aggregate total spending over time by day/week/month for a date
+        range, in the user's currency.
+      operationId: get_reports_over_time
+      parameters: []
+      responses:
+        '200':
+          description: '200 { currency, grouping, points: [ { period, total } ] }'
+      security:
+      - bearerAuth: []
+  /settings:
+    get:
+      summary: Return the current user's settings including configured currency.
+      description: Return the current user's settings including configured currency.
+      operationId: get_settings
+      parameters: []
+      responses:
+        '200':
+          description: 200 { currency }
+      security:
+      - bearerAuth: []
+    put:
+      summary: Update the single display currency from the supported list; no numeric
+        conversion applied.
+      description: Update the single display currency from the supported list; no
+        numeric conversion applied.
+      operationId: put_settings
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ currency }'
+      responses:
+        '200':
+          description: 200 { currency } or 422
+      security:
+      - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    users:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        password_hash:
+          type: string
+        currency:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - email
+      - password_hash
+      - currency
+      - is_active
+      - created_at
+    sessions:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        token_hash:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        revoked:
+          type: boolean
+      required:
+      - id
+      - user_id
+      - token_hash
+      - created_at
+      - last_seen_at
+      - expires_at
+      - revoked
+    categories:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        is_default:
+          type: boolean
+        is_fallback:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - name
+      - is_default
+      - is_fallback
+      - created_at
+    expenses:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        expense_date:
+          type: string
+          format: date
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - category_id
+      - amount
+      - expense_date
+      - created_at
+      - updated_at
